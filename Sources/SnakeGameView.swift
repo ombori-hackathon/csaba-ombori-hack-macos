@@ -115,7 +115,7 @@ struct SnakeGameView: View {
                                 Text("Ready to Play!")
                                     .font(.largeTitle.bold())
                                     .foregroundStyle(.white)
-                                Text("Use WASD Keys to move")
+                                Text("Use Arrow Keys to move")
                                     .font(.headline)
                                     .foregroundStyle(.white.opacity(0.8))
                                 Text("Press Space to start")
@@ -194,7 +194,7 @@ struct SnakeGameView: View {
                 Text("Controls:")
                     .font(.headline)
                 HStack(spacing: 20) {
-                    Label("WASD: Move", systemImage: "keyboard")
+                    Label("Arrow Keys: Move", systemImage: "keyboard")
                     Label("Space: Pause/Resume", systemImage: "space")
                 }
                 .font(.caption)
@@ -293,16 +293,16 @@ struct SnakeGameView: View {
 
     private func handleKeyPress(_ event: NSEvent) {
         switch event.keyCode {
-        case 13: // W key
+        case 126: // Up arrow
             engine.changeDirection(.up)
             godModeKeyCount = 0
-        case 1: // S key
+        case 125: // Down arrow
             engine.changeDirection(.down)
             godModeKeyCount = 0
-        case 0: // A key
+        case 123: // Left arrow
             engine.changeDirection(.left)
             godModeKeyCount = 0
-        case 2: // D key
+        case 124: // Right arrow
             engine.changeDirection(.right)
             godModeKeyCount = 0
         case 49: // Space bar
