@@ -14,6 +14,6 @@ struct CsabaOmboriHackApp: App {
             ContentView()
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 800, height: 600)
+        .defaultSize(width: 1000, height: 800)
     }
 }
