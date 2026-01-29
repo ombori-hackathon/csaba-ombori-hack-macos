@@ -20,40 +20,187 @@ struct SnakeGameView: View {
     @State private var lastUpdateTime: Date = Date()
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Header with score and status
-            HStack {
-                Text("Snake Game")
-                    .font(.title.bold())
-                Spacer()
-                if engine.godMode {
-                    Label("GOD MODE", systemImage: "sparkles")
-                        .font(.headline)
-                        .foregroundStyle(.yellow)
+        ZStack {
+            // Background - Desert atmosphere
+            LinearGradient(
+                colors: [
+                    Color(red: 0.12, green: 0.10, blue: 0.08),  // Dark desert night
+                    Color(red: 0.18, green: 0.14, blue: 0.10),  // Twilight sand
+                    Color(red: 0.22, green: 0.17, blue: 0.12)   // Warm dusk
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Tactical Header HUD
+                HStack(alignment: .top, spacing: 0) {
+                    // Left: Mission Status
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DESERT RECON")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .tracking(2)
+
+                        Text("VIPER TRACKING")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.6, green: 0.5, blue: 0.4))
+                            .tracking(1)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        ZStack {
+                            Color(red: 0.15, green: 0.12, blue: 0.10).opacity(0.8)
+
+                            // Scan line effect
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.03),
+                                            Color.white.opacity(0.01),
+                                            Color.white.opacity(0.03)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                    )
+                    .overlay(
+                        Rectangle()
+                            .stroke(Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.3), lineWidth: 1)
+                    )
+
+                    Spacer()
+
+                    // Center: God Mode Indicator
+                    if engine.godMode {
+                        HStack(spacing: 6) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Color(red: 1.0, green: 0.8, blue: 0.2))
+
+                            Text("INFINITE MODE")
+                                .font(.system(size: 10, weight: .black, design: .monospaced))
+                                .foregroundStyle(Color(red: 1.0, green: 0.8, blue: 0.2))
+                                .tracking(1.5)
+                        }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.yellow.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .shadow(color: .black.opacity(0.3), radius: 3, x: -2, y: -2)
-                        .shadow(color: .yellow.opacity(0.3), radius: 3, x: 2, y: 2)
-                }
-                Text("Score: \(engine.score)")
-                    .font(.title2.monospacedDigit())
-                    .foregroundStyle(.green)
+                        .padding(.vertical, 8)
+                        .background(
+                            ZStack {
+                                Color(red: 1.0, green: 0.8, blue: 0.2).opacity(0.15)
+
+                                // Pulsing glow effect
+                                Color(red: 1.0, green: 0.8, blue: 0.2).opacity(0.1)
+                                    .blur(radius: 8)
+                            }
+                        )
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color(red: 1.0, green: 0.8, blue: 0.2), lineWidth: 1)
+                        )
+                        .shadow(color: Color(red: 1.0, green: 0.8, blue: 0.2).opacity(0.5), radius: 8)
+                    }
+
+                    Spacer()
+
+                    // Right: Score Display
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("SCORE")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.6, green: 0.5, blue: 0.4))
+                            .tracking(2)
+
+                        Text(String(format: "%06d", engine.score))
+                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .shadow(color: Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.5), radius: 4)
+                    }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(nsColor: .windowBackgroundColor))
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: -2, y: -2)
-                            .shadow(color: .white.opacity(0.1), radius: 4, x: 2, y: 2)
-                    )
-            }
-            .padding(.horizontal)
+                        ZStack {
+                            Color(red: 0.15, green: 0.12, blue: 0.10).opacity(0.8)
 
-            // Game board
+                            // Glowing edge
+                            Rectangle()
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.5),
+                                            Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.1)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    lineWidth: 2
+                                )
+                        }
+                    )
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+
+            // Game board - Tactical viewport
             ZStack {
-                // Desert background
+                // Outer tactical frame
+                Rectangle()
+                    .fill(Color(red: 0.1, green: 0.08, blue: 0.06))
+                    .frame(width: GameConstants.boardSize + 20, height: GameConstants.boardSize + 20)
+                    .overlay(
+                        Rectangle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.9, green: 0.6, blue: 0.3),
+                                        Color(red: 0.6, green: 0.4, blue: 0.2),
+                                        Color(red: 0.9, green: 0.6, blue: 0.3)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+                    .shadow(color: Color.black.opacity(0.6), radius: 20)
+
+                // Corner markers (tactical UI elements)
+                ForEach(0..<4, id: \.self) { corner in
+                    let isTop = corner < 2
+                    let isLeft = corner % 2 == 0
+
+                    Path { path in
+                        let size: CGFloat = 15
+                        let frameOffset = GameConstants.boardSize / 2 + 8
+                        let x = isLeft ? -frameOffset : frameOffset
+                        let y = isTop ? -frameOffset : frameOffset
+
+                        if isTop && isLeft {
+                            path.move(to: CGPoint(x: x, y: y + size))
+                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: x + size, y: y))
+                        } else if isTop && !isLeft {
+                            path.move(to: CGPoint(x: x - size, y: y))
+                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: x, y: y + size))
+                        } else if !isTop && isLeft {
+                            path.move(to: CGPoint(x: x, y: y - size))
+                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: x + size, y: y))
+                        } else {
+                            path.move(to: CGPoint(x: x - size, y: y))
+                            path.addLine(to: CGPoint(x: x, y: y))
+                            path.addLine(to: CGPoint(x: x, y: y - size))
+                        }
+                    }
+                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                }
+
+                // Desert background viewport
                 Rectangle()
                     .fill(
                         LinearGradient(
@@ -67,9 +214,21 @@ struct SnakeGameView: View {
                         )
                     )
                     .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
-                    .shadow(color: Color.black.opacity(0.3), radius: 8, x: -4, y: -4)
-                    .shadow(color: Color.white.opacity(0.2), radius: 8, x: 4, y: 4)
-                    .border(Color(red: 0.6, green: 0.5, blue: 0.35), width: 3)
+                    .overlay(
+                        // Vignette effect
+                        Rectangle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        Color.clear,
+                                        Color.black.opacity(0.3)
+                                    ],
+                                    center: .center,
+                                    startRadius: GameConstants.boardSize * 0.3,
+                                    endRadius: GameConstants.boardSize * 0.6
+                                )
+                            )
+                    )
 
                 // Game canvas with 60fps animation
                 TimelineView(.animation) { timeline in
@@ -103,53 +262,139 @@ struct SnakeGameView: View {
                     .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
                 }
 
-                // Game state overlay
+                // Game state overlay - Tactical display
                 if engine.gameState != .playing {
                     ZStack {
+                        // Heavy atmospheric overlay
                         Rectangle()
-                            .fill(Color.black.opacity(0.7))
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.05, green: 0.04, blue: 0.03).opacity(0.9),
+                                        Color(red: 0.08, green: 0.06, blue: 0.05).opacity(0.95)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                             .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
 
-                        VStack(spacing: 20) {
+                        VStack(spacing: 24) {
                             if engine.gameState == .ready {
-                                Text("Ready to Play!")
-                                    .font(.largeTitle.bold())
-                                    .foregroundStyle(.white)
-                                Text("Use Arrow Keys to move")
-                                    .font(.headline)
-                                    .foregroundStyle(.white.opacity(0.8))
-                                Text("Press Space to start")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.6))
-                            } else if engine.gameState == .paused {
-                                Text("Paused")
-                                    .font(.largeTitle.bold())
-                                    .foregroundStyle(.yellow)
-                                Text("Press Space to resume")
-                                    .font(.headline)
-                                    .foregroundStyle(.white.opacity(0.8))
-                            } else if engine.gameState == .gameOver {
-                                Text("Game Over!")
-                                    .font(.largeTitle.bold())
-                                    .foregroundStyle(.red)
-                                Text("Final Score: \(engine.score)")
-                                    .font(.title.monospacedDigit())
-                                    .foregroundStyle(.white)
-                                HStack(spacing: 12) {
-                                    Button("Submit Score") {
-                                        showNamePrompt = true
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .controlSize(.large)
-                                    .disabled(engine.score == 0 || scoreSubmitted)
+                                VStack(spacing: 16) {
+                                    Text("MISSION READY")
+                                        .font(.system(size: 42, weight: .black, design: .monospaced))
+                                        .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                                        .tracking(3)
+                                        .shadow(color: Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.5), radius: 10)
 
-                                    Button("Play Again") {
-                                        scoreSubmitted = false
-                                        godModeKeyCount = 0
-                                        engine.resetGame()
+                                    Rectangle()
+                                        .fill(Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.3))
+                                        .frame(width: 200, height: 2)
+
+                                    VStack(spacing: 8) {
+                                        Text("OBJECTIVE: TRACK DESERT VIPER")
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.7, green: 0.6, blue: 0.5))
+                                            .tracking(1.5)
+
+                                        Text("USE ARROW KEYS TO NAVIGATE")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.6, green: 0.5, blue: 0.4))
+                                            .tracking(1)
                                     }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.large)
+                                    .padding(.top, 8)
+
+                                    Text("[ PRESS SPACE TO BEGIN ]")
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                                        .tracking(2)
+                                        .padding(.top, 12)
+                                }
+                            } else if engine.gameState == .paused {
+                                VStack(spacing: 16) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "pause.fill")
+                                            .font(.system(size: 24))
+                                        Text("MISSION PAUSED")
+                                            .font(.system(size: 36, weight: .black, design: .monospaced))
+                                            .tracking(2)
+                                    }
+                                    .foregroundStyle(Color(red: 1.0, green: 0.8, blue: 0.2))
+                                    .shadow(color: Color(red: 1.0, green: 0.8, blue: 0.2).opacity(0.5), radius: 10)
+
+                                    Text("[ PRESS SPACE TO RESUME ]")
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(Color(red: 0.7, green: 0.6, blue: 0.5))
+                                        .tracking(2)
+                                }
+                            } else if engine.gameState == .gameOver {
+                                VStack(spacing: 20) {
+                                    VStack(spacing: 12) {
+                                        Text("MISSION TERMINATED")
+                                            .font(.system(size: 38, weight: .black, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.9, green: 0.3, blue: 0.2))
+                                            .tracking(3)
+                                            .shadow(color: Color(red: 0.9, green: 0.3, blue: 0.2).opacity(0.6), radius: 12)
+
+                                        Rectangle()
+                                            .fill(Color(red: 0.9, green: 0.3, blue: 0.2).opacity(0.4))
+                                            .frame(width: 250, height: 2)
+                                    }
+
+                                    VStack(spacing: 4) {
+                                        Text("FINAL SCORE")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.6, green: 0.5, blue: 0.4))
+                                            .tracking(2)
+
+                                        Text(String(format: "%06d", engine.score))
+                                            .font(.system(size: 56, weight: .black, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                                            .shadow(color: Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.6), radius: 8)
+                                    }
+                                    .padding(.vertical, 8)
+
+                                    HStack(spacing: 16) {
+                                        Button(action: {
+                                            showNamePrompt = true
+                                        }) {
+                                            Text("SUBMIT SCORE")
+                                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                .tracking(1.5)
+                                                .foregroundStyle(Color(red: 0.1, green: 0.08, blue: 0.06))
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 12)
+                                                .background(Color(red: 0.9, green: 0.6, blue: 0.3))
+                                                .overlay(
+                                                    Rectangle()
+                                                        .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                                                        .padding(2)
+                                                )
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(engine.score == 0 || scoreSubmitted)
+                                        .opacity(engine.score == 0 || scoreSubmitted ? 0.4 : 1.0)
+
+                                        Button(action: {
+                                            scoreSubmitted = false
+                                            godModeKeyCount = 0
+                                            engine.resetGame()
+                                        }) {
+                                            Text("RETRY MISSION")
+                                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                                .tracking(1.5)
+                                                .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 12)
+                                                .background(Color(red: 0.15, green: 0.12, blue: 0.10))
+                                                .overlay(
+                                                    Rectangle()
+                                                        .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                                                )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                         }
@@ -157,54 +402,160 @@ struct SnakeGameView: View {
                 }
             }
 
-            // Controls
-            HStack(spacing: 20) {
-                if engine.gameState == .ready {
-                    Button("Start Game") {
-                        engine.startGame()
+            // Tactical Control Panel
+            HStack(spacing: 0) {
+                // Left: Controls
+                HStack(spacing: 16) {
+                    if engine.gameState == .ready {
+                        Button(action: {
+                            engine.startGame()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("START")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                            }
+                            .foregroundStyle(Color(red: 0.1, green: 0.08, blue: 0.06))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                                    .padding(2)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.space, modifiers: [])
+                    } else if engine.gameState == .playing {
+                        Button(action: {
+                            engine.pauseGame()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "pause.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("PAUSE")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                            }
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.15, green: 0.12, blue: 0.10))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.space, modifiers: [])
+                    } else if engine.gameState == .paused {
+                        Button(action: {
+                            engine.resumeGame()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("RESUME")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                            }
+                            .foregroundStyle(Color(red: 0.1, green: 0.08, blue: 0.06))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                                    .padding(2)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.space, modifiers: [])
                     }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.space, modifiers: [])
-                } else if engine.gameState == .playing {
-                    Button("Pause") {
-                        engine.pauseGame()
-                    }
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.space, modifiers: [])
-                } else if engine.gameState == .paused {
-                    Button("Resume") {
-                        engine.resumeGame()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.space, modifiers: [])
-                }
 
-                if engine.gameState != .ready {
-                    Button("Reset") {
-                        scoreSubmitted = false
-                        godModeKeyCount = 0
-                        engine.resetGame()
+                    if engine.gameState != .ready {
+                        Button(action: {
+                            scoreSubmitted = false
+                            godModeKeyCount = 0
+                            engine.resetGame()
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("RESET")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                            }
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color(red: 0.15, green: 0.12, blue: 0.10))
+                            .overlay(
+                                Rectangle()
+                                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3), lineWidth: 2)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.bordered)
                 }
-            }
+                .padding(.leading, 24)
 
-            // Instructions
-            VStack(spacing: 8) {
-                Text("Controls:")
-                    .font(.headline)
-                HStack(spacing: 20) {
-                    Label("Arrow Keys: Move", systemImage: "keyboard")
-                    Label("Space: Pause/Resume", systemImage: "space")
+                Spacer()
+
+                // Right: Key bindings display
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.up.arrow.down.arrow.left.arrow.right")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                        Text("ARROW KEYS")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.7, green: 0.6, blue: 0.5))
+                            .tracking(1)
+                    }
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "space")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.3))
+                        Text("PAUSE / RESUME")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.7, green: 0.6, blue: 0.5))
+                            .tracking(1)
+                    }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .padding(.trailing, 24)
             }
-            .padding()
+            .padding(.vertical, 16)
+            .background(
+                ZStack {
+                    Color(red: 0.10, green: 0.08, blue: 0.06).opacity(0.9)
+
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.02),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+            )
+            .overlay(
+                Rectangle()
+                    .stroke(Color(red: 0.9, green: 0.6, blue: 0.3).opacity(0.2), lineWidth: 1),
+                alignment: .top
+            )
+            }
+            .padding(.bottom, 0)
         }
-        .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             setupKeyboardMonitoring()
         }
