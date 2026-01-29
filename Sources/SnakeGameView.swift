@@ -752,31 +752,54 @@ struct SnakeGameView: View {
                     height: GameConstants.cellSize - 2
                 )
 
-                // Realistic snake body coloring - olive green with pattern
-                let baseColor = Color(red: 0.4, green: 0.6, blue: 0.2)  // Olive green
-                let patternColor = Color(red: 0.25, green: 0.4, blue: 0.15)  // Darker green
-                let bellyColor = Color(red: 0.7, green: 0.8, blue: 0.5)  // Light yellow-green
+                // Photorealistic snake body with advanced shading
+                let baseColor = Color(red: 0.38, green: 0.55, blue: 0.22)  // Rich olive green
+                let darkScale = Color(red: 0.22, green: 0.38, blue: 0.14)  // Deep shadow green
+                let lightScale = Color(red: 0.52, green: 0.68, blue: 0.32)  // Highlight green
+                let bellyColor = Color(red: 0.72, green: 0.78, blue: 0.55)  // Pale yellow-green
 
-                // Draw body segment with gradient (darker on top, lighter on bottom for 3D effect)
-                let bodyGradient = Gradient(colors: [patternColor, baseColor, bellyColor])
+                // Drop shadow for 3D depth
+                var shadowCtx = context
+                shadowCtx.addFilter(.shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 2))
+                shadowCtx.fill(Path(roundedRect: rect, cornerRadius: 7), with: .color(baseColor))
+
+                // Main body with radial gradient for cylindrical appearance
+                let centerPoint = CGPoint(x: rect.midX, y: rect.midY)
+                let bodyGradient = Gradient(colors: [
+                    lightScale,      // Top highlight
+                    baseColor,       // Mid tone
+                    darkScale,       // Shadow
+                    bellyColor       // Bottom belly
+                ])
                 context.fill(
-                    Path(roundedRect: rect, cornerRadius: 6),
-                    with: .linearGradient(
+                    Path(roundedRect: rect, cornerRadius: 7),
+                    with: .radialGradient(
                         bodyGradient,
-                        startPoint: CGPoint(x: rect.minX, y: rect.minY),
-                        endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
+                        center: CGPoint(x: centerPoint.x - 3, y: centerPoint.y - 3),
+                        startRadius: 2,
+                        endRadius: GameConstants.cellSize * 0.7
                     )
                 )
 
-                // Add scale pattern texture
-                drawScalePattern(context: context, in: rect, segmentIndex: index)
+                // Detailed scale pattern with individual highlights
+                drawPhotorealisticScales(context: context, in: rect, segmentIndex: index)
 
-                // Inner shadow for depth
-                var innerShadowContext = context
-                innerShadowContext.addFilter(.shadow(color: .black.opacity(0.3), radius: 2, x: -1, y: -1))
-                innerShadowContext.fill(
-                    Path(roundedRect: rect.insetBy(dx: 1, dy: 1), cornerRadius: 5),
-                    with: .color(.black.opacity(0.05))
+                // Subsurface scattering effect (light bleeding through edges)
+                context.fill(
+                    Path(roundedRect: rect.insetBy(dx: 2, dy: 2), cornerRadius: 6),
+                    with: .color(lightScale.opacity(0.15))
+                )
+
+                // Specular highlight on top edge
+                let highlightRect = CGRect(
+                    x: rect.minX + 3,
+                    y: rect.minY + 2,
+                    width: rect.width - 6,
+                    height: 3
+                )
+                context.fill(
+                    Path(ellipseIn: highlightRect),
+                    with: .color(.white.opacity(0.25))
                 )
             }
         }
@@ -989,106 +1012,254 @@ struct SnakeGameView: View {
         context.fill(Path(ellipseIn: patternRect2), with: .color(patternColor))
     }
 
-    private func drawScalePattern(context: GraphicsContext, in rect: CGRect, segmentIndex: Int) {
-        // Draw subtle scale pattern on body
-        let scaleColor = Color(red: 0.2, green: 0.35, blue: 0.1).opacity(0.3)
+    private func drawPhotorealisticScales(context: GraphicsContext, in rect: CGRect, segmentIndex: Int) {
+        // Advanced scale rendering with individual highlights and shadows
+        let scaleBaseColor = Color(red: 0.28, green: 0.42, blue: 0.18).opacity(0.6)
+        let scaleHighlight = Color(red: 0.55, green: 0.70, blue: 0.35).opacity(0.4)
+        let scaleShadow = Color(red: 0.15, green: 0.25, blue: 0.10).opacity(0.5)
 
-        // Alternating pattern based on segment index
-        let offset = CGFloat(segmentIndex % 2) * 3
+        // Alternating pattern for organic look
+        let offset = CGFloat(segmentIndex % 2) * 2.5
 
-        // Draw small overlapping circles to simulate scales
-        let scaleSize: CGFloat = 4
-        let spacing: CGFloat = 3
+        // Draw overlapping scales with 3D effect
+        let scaleWidth: CGFloat = 5
+        let scaleHeight: CGFloat = 4
+        let spacing: CGFloat = 3.5
 
-        for x in stride(from: rect.minX + offset, to: rect.maxX, by: spacing) {
-            for y in stride(from: rect.minY, to: rect.maxY, by: spacing) {
+        for x in stride(from: rect.minX + offset, to: rect.maxX - 1, by: spacing) {
+            for y in stride(from: rect.minY, to: rect.maxY - 1, by: spacing) {
+                let scaleRect = CGRect(
+                    x: x,
+                    y: y,
+                    width: scaleWidth,
+                    height: scaleHeight
+                )
+
+                // Shadow under each scale
+                context.fill(
+                    Path(ellipseIn: scaleRect.offsetBy(dx: 0.5, dy: 0.5)),
+                    with: .color(scaleShadow)
+                )
+
+                // Main scale body
+                context.fill(
+                    Path(ellipseIn: scaleRect),
+                    with: .color(scaleBaseColor)
+                )
+
+                // Highlight on top-left of each scale
+                let highlightRect = CGRect(
+                    x: x + 0.5,
+                    y: y + 0.5,
+                    width: scaleWidth * 0.5,
+                    height: scaleHeight * 0.5
+                )
+                context.fill(
+                    Path(ellipseIn: highlightRect),
+                    with: .color(scaleHighlight)
+                )
+
+                // Specular dot on each scale
                 context.fill(
                     Path(ellipseIn: CGRect(
-                        x: x,
-                        y: y,
-                        width: scaleSize,
-                        height: scaleSize
+                        x: x + 1,
+                        y: y + 1,
+                        width: 1,
+                        height: 1
                     )),
-                    with: .color(scaleColor)
+                    with: .color(.white.opacity(0.3))
                 )
+            }
+        }
+
+        // Add diamond pattern overlay for realism
+        let patternColor = Color(red: 0.2, green: 0.35, blue: 0.12).opacity(0.25)
+        let diamondSize: CGFloat = 8
+        for x in stride(from: rect.minX + 4, to: rect.maxX - 4, by: diamondSize) {
+            for y in stride(from: rect.minY + 4, to: rect.maxY - 4, by: diamondSize) {
+                var diamondPath = Path()
+                diamondPath.move(to: CGPoint(x: x, y: y - 3))
+                diamondPath.addLine(to: CGPoint(x: x + 3, y: y))
+                diamondPath.addLine(to: CGPoint(x: x, y: y + 3))
+                diamondPath.addLine(to: CGPoint(x: x - 3, y: y))
+                diamondPath.closeSubpath()
+
+                context.fill(diamondPath, with: .color(patternColor))
             }
         }
     }
 
     private func drawDesertTexture(context: GraphicsContext, size: CGSize) {
-        // Draw sand texture with random variations
-        let sandDarkColor = Color(red: 0.7, green: 0.6, blue: 0.4).opacity(0.15)
-        let sandLightColor = Color(red: 0.9, green: 0.8, blue: 0.65).opacity(0.1)
+        // Photorealistic desert sand with advanced texturing
 
-        // Draw sand dunes pattern (wavy lines)
-        for y in stride(from: CGFloat(0), to: size.height, by: 40) {
-            var dunePath = Path()
-            dunePath.move(to: CGPoint(x: 0, y: y))
+        // Layer 1: Base sand ripples with depth
+        let rippleColor = Color(red: 0.72, green: 0.62, blue: 0.44).opacity(0.25)
+        let rippleShadow = Color(red: 0.58, green: 0.50, blue: 0.36).opacity(0.18)
 
-            for x in stride(from: CGFloat(0), to: size.width, by: 30) {
-                let waveHeight: CGFloat = sin(x / 50) * 8
-                dunePath.addLine(to: CGPoint(x: x, y: y + waveHeight))
+        for y in stride(from: CGFloat(0), to: size.height, by: 35) {
+            var ripplePath = Path()
+            ripplePath.move(to: CGPoint(x: 0, y: y))
+
+            // Create organic wave pattern
+            for x in stride(from: CGFloat(0), to: size.width, by: 15) {
+                let waveHeight = sin(x / 45 + y / 60) * 6
+                let noise = cos(x / 25) * 2
+                ripplePath.addLine(to: CGPoint(x: x, y: y + waveHeight + noise))
             }
+            ripplePath.addLine(to: CGPoint(x: size.width, y: y))
 
-            context.stroke(dunePath, with: .color(sandDarkColor), lineWidth: 2)
+            // Shadow side of ripple
+            context.stroke(ripplePath, with: .color(rippleShadow), lineWidth: 3)
+            // Highlight side
+            context.stroke(ripplePath, with: .color(rippleColor), lineWidth: 1.5)
         }
 
-        // Draw small rocks scattered around (static positions)
-        let rockColor = Color(red: 0.5, green: 0.4, blue: 0.3).opacity(0.4)
-        let rockPositions: [(CGFloat, CGFloat, CGFloat)] = [
-            (50, 80, 6),
-            (420, 150, 5),
-            (200, 350, 7),
-            (380, 420, 5),
-            (120, 280, 4),
-            (300, 100, 6),
-            (150, 480, 5),
-            (450, 320, 7)
-        ]
-
-        for (x, y, size) in rockPositions {
-            // Draw irregular rock shape
-            context.fill(
-                Path(ellipseIn: CGRect(x: x, y: y, width: size, height: size * 0.8)),
-                with: .color(rockColor)
-            )
-            // Add shadow for rock
-            context.fill(
-                Path(ellipseIn: CGRect(x: x + 1, y: y + size * 0.6, width: size, height: size * 0.3)),
-                with: .color(Color.black.opacity(0.15))
-            )
-        }
-
-        // Add some sand grain texture
-        for _ in 0..<50 {
+        // Layer 2: Fine sand grain texture (dense)
+        for _ in 0..<200 {
             let x = CGFloat.random(in: 0...size.width)
             let y = CGFloat.random(in: 0...size.height)
-            let grainSize = CGFloat.random(in: 0.5...1.5)
+            let grainSize = CGFloat.random(in: 0.5...1.8)
+            let opacity = Double.random(in: 0.08...0.15)
 
             context.fill(
                 Path(ellipseIn: CGRect(x: x, y: y, width: grainSize, height: grainSize)),
-                with: .color(sandLightColor)
+                with: .color(Color(red: 0.85, green: 0.75, blue: 0.58).opacity(opacity))
             )
         }
 
-        // Draw small cacti silhouettes (optional desert elements)
-        drawCactus(context: context, at: CGPoint(x: 30, y: 30), size: 12)
-        drawCactus(context: context, at: CGPoint(x: 470, y: 450), size: 10)
+        // Layer 3: Sand shadows and highlights for depth
+        for _ in 0..<30 {
+            let x = CGFloat.random(in: 0...size.width)
+            let y = CGFloat.random(in: 0...size.height)
+            let patchSize = CGFloat.random(in: 8...20)
+
+            // Dark sand patch
+            context.fill(
+                Path(ellipseIn: CGRect(x: x, y: y, width: patchSize, height: patchSize * 0.7)),
+                with: .color(Color(red: 0.68, green: 0.58, blue: 0.42).opacity(0.12))
+            )
+        }
+
+        // Layer 4: Photorealistic rocks with 3D shading
+        let rockPositions: [(CGFloat, CGFloat, CGFloat)] = [
+            (50, 80, 8),
+            (420, 150, 7),
+            (200, 350, 9),
+            (380, 420, 6),
+            (120, 280, 5),
+            (300, 100, 8),
+            (150, 480, 7),
+            (450, 320, 9),
+            (90, 400, 6),
+            (350, 80, 7)
+        ]
+
+        for (x, y, size) in rockPositions {
+            // Rock shadow (soft, offset)
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: x + 1.5,
+                    y: y + size * 0.6,
+                    width: size * 1.2,
+                    height: size * 0.4
+                )),
+                with: .radialGradient(
+                    Gradient(colors: [
+                        Color.black.opacity(0.3),
+                        Color.clear
+                    ]),
+                    center: CGPoint(x: x + size/2 + 1.5, y: y + size * 0.8),
+                    startRadius: 0,
+                    endRadius: size * 0.6
+                )
+            )
+
+            // Rock body with gradient for 3D effect
+            let rockPath = Path(ellipseIn: CGRect(x: x, y: y, width: size, height: size * 0.85))
+
+            context.fill(
+                rockPath,
+                with: .radialGradient(
+                    Gradient(colors: [
+                        Color(red: 0.60, green: 0.50, blue: 0.38),  // Light side
+                        Color(red: 0.48, green: 0.38, blue: 0.28),  // Mid tone
+                        Color(red: 0.35, green: 0.28, blue: 0.20)   // Shadow side
+                    ]),
+                    center: CGPoint(x: x + size * 0.3, y: y + size * 0.3),
+                    startRadius: 0,
+                    endRadius: size * 0.6
+                )
+            )
+
+            // Rock highlight (sun reflection)
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: x + size * 0.2,
+                    y: y + size * 0.15,
+                    width: size * 0.3,
+                    height: size * 0.25
+                )),
+                with: .color(Color(red: 0.75, green: 0.65, blue: 0.52).opacity(0.4))
+            )
+
+            // Rock texture (cracks and details)
+            for _ in 0...2 {
+                let crackX = x + CGFloat.random(in: size * 0.2...size * 0.8)
+                let crackY = y + CGFloat.random(in: size * 0.2...size * 0.7)
+                context.fill(
+                    Path(ellipseIn: CGRect(x: crackX, y: crackY, width: 1, height: 1.5)),
+                    with: .color(Color.black.opacity(0.4))
+                )
+            }
+        }
+
+        // Layer 5: Desert debris (small pebbles)
+        for _ in 0..<25 {
+            let x = CGFloat.random(in: 0...size.width)
+            let y = CGFloat.random(in: 0...size.height)
+            let pebbleSize = CGFloat.random(in: 1.5...3.5)
+
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: x,
+                    y: y,
+                    width: pebbleSize,
+                    height: pebbleSize * 0.8
+                )),
+                with: .color(Color(red: 0.55, green: 0.45, blue: 0.35).opacity(0.5))
+            )
+        }
+
+        // Layer 6: Enhanced cacti with more detail
+        drawRealisticCactus(context: context, at: CGPoint(x: 30, y: 30), size: 14)
+        drawRealisticCactus(context: context, at: CGPoint(x: 470, y: 450), size: 12)
+        drawRealisticCactus(context: context, at: CGPoint(x: 250, y: 480), size: 11)
     }
 
-    private func drawCactus(context: GraphicsContext, at position: CGPoint, size: CGFloat) {
-        let cactusColor = Color(red: 0.3, green: 0.5, blue: 0.2).opacity(0.3)
+    private func drawRealisticCactus(context: GraphicsContext, at position: CGPoint, size: CGFloat) {
+        let cactusGreen = Color(red: 0.28, green: 0.52, blue: 0.28).opacity(0.65)
+        let cactusHighlight = Color(red: 0.38, green: 0.62, blue: 0.38).opacity(0.5)
+        let cactusShadow = Color(red: 0.18, green: 0.35, blue: 0.18).opacity(0.6)
 
-        // Main trunk
+        // Cactus shadow
+        var shadowCtx = context
+        shadowCtx.addFilter(.shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 2))
+
+        // Main trunk with gradient
         let trunkRect = CGRect(
             x: position.x - size/4,
             y: position.y,
             width: size/2,
             height: size
         )
+
         context.fill(
-            Path(roundedRect: trunkRect, cornerRadius: size/6),
-            with: .color(cactusColor)
+            Path(roundedRect: trunkRect, cornerRadius: size/7),
+            with: .linearGradient(
+                Gradient(colors: [cactusHighlight, cactusGreen, cactusShadow]),
+                startPoint: CGPoint(x: trunkRect.minX, y: trunkRect.midY),
+                endPoint: CGPoint(x: trunkRect.maxX, y: trunkRect.midY)
+            )
         )
 
         // Left arm
@@ -1099,8 +1270,12 @@ struct SnakeGameView: View {
             height: size/2.5
         )
         context.fill(
-            Path(roundedRect: leftArmRect, cornerRadius: size/8),
-            with: .color(cactusColor)
+            Path(roundedRect: leftArmRect, cornerRadius: size/9),
+            with: .linearGradient(
+                Gradient(colors: [cactusHighlight, cactusGreen, cactusShadow]),
+                startPoint: CGPoint(x: leftArmRect.minX, y: leftArmRect.midY),
+                endPoint: CGPoint(x: leftArmRect.maxX, y: leftArmRect.midY)
+            )
         )
 
         // Right arm
@@ -1111,14 +1286,39 @@ struct SnakeGameView: View {
             height: size/3
         )
         context.fill(
-            Path(roundedRect: rightArmRect, cornerRadius: size/8),
-            with: .color(cactusColor)
+            Path(roundedRect: rightArmRect, cornerRadius: size/9),
+            with: .linearGradient(
+                Gradient(colors: [cactusHighlight, cactusGreen, cactusShadow]),
+                startPoint: CGPoint(x: rightArmRect.minX, y: rightArmRect.midY),
+                endPoint: CGPoint(x: rightArmRect.maxX, y: rightArmRect.midY)
+            )
         )
+
+        // Add spines (needles) for realism
+        for i in 0..<5 {
+            let spineY = position.y + CGFloat(i) * size / 5 + size / 10
+            context.stroke(
+                Path { path in
+                    path.move(to: CGPoint(x: position.x - size/8, y: spineY))
+                    path.addLine(to: CGPoint(x: position.x - size/6, y: spineY))
+                },
+                with: .color(Color(red: 0.8, green: 0.75, blue: 0.6).opacity(0.6)),
+                lineWidth: 0.5
+            )
+            context.stroke(
+                Path { path in
+                    path.move(to: CGPoint(x: position.x + size/8, y: spineY))
+                    path.addLine(to: CGPoint(x: position.x + size/6, y: spineY))
+                },
+                with: .color(Color(red: 0.8, green: 0.75, blue: 0.6).opacity(0.6)),
+                lineWidth: 0.5
+            )
+        }
     }
 
     private func drawApple(context: GraphicsContext, at position: Position) {
         let center = gridToScreen(position)
-        let appleSize = GameConstants.cellSize - 6
+        let appleSize = GameConstants.cellSize - 4
         let rect = CGRect(
             x: center.x - appleSize / 2,
             y: center.y - appleSize / 2,
@@ -1126,69 +1326,176 @@ struct SnakeGameView: View {
             height: appleSize
         )
 
-        // Shadow underneath
-        var shadowContext = context
-        shadowContext.addFilter(.shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2))
-        shadowContext.fill(
-            Path(ellipseIn: rect.offsetBy(dx: 0, dy: 1)),
+        // Ambient occlusion shadow (soft, large radius)
+        var aoShadow = context
+        aoShadow.addFilter(.shadow(color: .black.opacity(0.5), radius: 6, x: 1, y: 3))
+        aoShadow.fill(
+            Path(ellipseIn: rect),
             with: .color(.black.opacity(0.1))
         )
 
-        // Apple body with radial gradient
-        let gradient = Gradient(colors: [
-            Color(red: 1.0, green: 0.3, blue: 0.2),  // bright red (top)
-            Color(red: 0.8, green: 0.1, blue: 0.1),  // dark red (middle)
-            Color(red: 0.6, green: 0.05, blue: 0.05) // shadow red (bottom)
+        // Base apple shape with complex gradient for spherical appearance
+        let primaryGradient = Gradient(colors: [
+            Color(red: 0.95, green: 0.25, blue: 0.20),  // Bright highlight
+            Color(red: 0.85, green: 0.18, blue: 0.15),  // Mid red
+            Color(red: 0.70, green: 0.12, blue: 0.10),  // Deep red
+            Color(red: 0.55, green: 0.08, blue: 0.08),  // Shadow red
+            Color(red: 0.40, green: 0.05, blue: 0.05)   // Dark core shadow
         ])
 
-        let gradientCenter = CGPoint(x: center.x - appleSize * 0.15, y: center.y - appleSize * 0.15)
+        // Main body with radial gradient from top-left (light source)
+        let lightSource = CGPoint(x: center.x - appleSize * 0.25, y: center.y - appleSize * 0.25)
         context.fill(
             Path(ellipseIn: rect),
             with: .radialGradient(
-                gradient,
-                center: gradientCenter,
+                primaryGradient,
+                center: lightSource,
                 startRadius: 0,
-                endRadius: appleSize * 0.6
+                endRadius: appleSize * 0.85
             )
         )
 
-        // Highlight spot for 3D effect
-        let highlightSize: CGFloat = 5
-        let highlightRect = CGRect(
-            x: center.x - appleSize / 4,
-            y: center.y - appleSize / 4,
-            width: highlightSize,
-            height: highlightSize
+        // Add subtle color variation (natural apple texture)
+        for _ in 0..<8 {
+            let randomX = CGFloat.random(in: -appleSize/3...appleSize/3)
+            let randomY = CGFloat.random(in: -appleSize/3...appleSize/3)
+            let varSize = CGFloat.random(in: 3...6)
+
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: center.x + randomX - varSize/2,
+                    y: center.y + randomY - varSize/2,
+                    width: varSize,
+                    height: varSize
+                )),
+                with: .color(Color(red: 0.75, green: 0.15, blue: 0.12).opacity(0.3))
+            )
+        }
+
+        // Primary specular highlight (glossy surface reflection)
+        let mainHighlight = CGRect(
+            x: center.x - appleSize * 0.35,
+            y: center.y - appleSize * 0.35,
+            width: appleSize * 0.35,
+            height: appleSize * 0.3
         )
         context.fill(
-            Path(ellipseIn: highlightRect),
-            with: .color(.white.opacity(0.7))
+            Path(ellipseIn: mainHighlight),
+            with: .radialGradient(
+                Gradient(colors: [
+                    .white.opacity(0.75),
+                    .white.opacity(0.35),
+                    .clear
+                ]),
+                center: CGPoint(x: mainHighlight.midX, y: mainHighlight.midY),
+                startRadius: 0,
+                endRadius: appleSize * 0.25
+            )
         )
 
-        // Stem (small brown rectangle at top)
-        let stemWidth: CGFloat = 2
-        let stemHeight: CGFloat = 4
+        // Secondary diffuse highlight
+        let secondaryHighlight = CGRect(
+            x: center.x - appleSize * 0.15,
+            y: center.y - appleSize * 0.20,
+            width: appleSize * 0.20,
+            height: appleSize * 0.18
+        )
+        context.fill(
+            Path(ellipseIn: secondaryHighlight),
+            with: .color(.white.opacity(0.25))
+        )
+
+        // Rim light on opposite side (reflected light)
+        let rimLight = CGRect(
+            x: center.x + appleSize * 0.20,
+            y: center.y + appleSize * 0.15,
+            width: appleSize * 0.15,
+            height: appleSize * 0.25
+        )
+        context.fill(
+            Path(ellipseIn: rimLight),
+            with: .color(Color(red: 0.9, green: 0.4, blue: 0.3).opacity(0.3))
+        )
+
+        // Contact shadow at bottom (where apple touches surface)
+        context.fill(
+            Path(ellipseIn: CGRect(
+                x: center.x - appleSize * 0.25,
+                y: center.y + appleSize * 0.35,
+                width: appleSize * 0.5,
+                height: appleSize * 0.15
+            )),
+            with: .color(.black.opacity(0.4))
+        )
+
+        // Realistic stem with gradient
+        let stemWidth: CGFloat = 2.5
+        let stemHeight: CGFloat = 5
         let stemRect = CGRect(
             x: center.x - stemWidth / 2,
-            y: center.y - appleSize / 2 + 1,
+            y: center.y - appleSize / 2,
             width: stemWidth,
             height: stemHeight
         )
-        context.fill(
-            Path(roundedRect: stemRect, cornerRadius: 1),
-            with: .color(Color(red: 0.4, green: 0.2, blue: 0.1))
+
+        // Stem shadow
+        var stemShadowCtx = context
+        stemShadowCtx.addFilter(.shadow(color: .black.opacity(0.5), radius: 2, x: 0.5, y: 0.5))
+        stemShadowCtx.fill(
+            Path(roundedRect: stemRect, cornerRadius: 1.2),
+            with: .color(Color(red: 0.35, green: 0.20, blue: 0.12))
         )
 
-        // Leaf (small green ellipse)
-        let leafRect = CGRect(
-            x: center.x + 1,
-            y: center.y - appleSize / 2,
-            width: 3,
-            height: 2
-        )
+        // Stem gradient
         context.fill(
-            Path(ellipseIn: leafRect),
-            with: .color(Color(red: 0.2, green: 0.6, blue: 0.1))
+            Path(roundedRect: stemRect, cornerRadius: 1.2),
+            with: .linearGradient(
+                Gradient(colors: [
+                    Color(red: 0.50, green: 0.30, blue: 0.18),
+                    Color(red: 0.35, green: 0.20, blue: 0.12),
+                    Color(red: 0.25, green: 0.15, blue: 0.08)
+                ]),
+                startPoint: CGPoint(x: stemRect.minX, y: stemRect.minY),
+                endPoint: CGPoint(x: stemRect.maxX, y: stemRect.maxY)
+            )
+        )
+
+        // Detailed leaf with veins
+        let leafPath = Path { path in
+            path.move(to: CGPoint(x: center.x + 2, y: center.y - appleSize / 2 + 1))
+            path.addQuadCurve(
+                to: CGPoint(x: center.x + 5, y: center.y - appleSize / 2 + 2),
+                control: CGPoint(x: center.x + 4.5, y: center.y - appleSize / 2 - 0.5)
+            )
+            path.addQuadCurve(
+                to: CGPoint(x: center.x + 2, y: center.y - appleSize / 2 + 3),
+                control: CGPoint(x: center.x + 4, y: center.y - appleSize / 2 + 3.5)
+            )
+            path.closeSubpath()
+        }
+
+        // Leaf gradient
+        context.fill(
+            leafPath,
+            with: .linearGradient(
+                Gradient(colors: [
+                    Color(red: 0.35, green: 0.70, blue: 0.25),
+                    Color(red: 0.25, green: 0.55, blue: 0.18),
+                    Color(red: 0.18, green: 0.45, blue: 0.12)
+                ]),
+                startPoint: CGPoint(x: center.x + 2, y: center.y - appleSize / 2),
+                endPoint: CGPoint(x: center.x + 5, y: center.y - appleSize / 2 + 3)
+            )
+        )
+
+        // Leaf vein
+        context.stroke(
+            Path { path in
+                path.move(to: CGPoint(x: center.x + 2.5, y: center.y - appleSize / 2 + 1.5))
+                path.addLine(to: CGPoint(x: center.x + 4, y: center.y - appleSize / 2 + 2))
+            },
+            with: .color(Color(red: 0.15, green: 0.35, blue: 0.10).opacity(0.6)),
+            lineWidth: 0.5
         )
     }
 }
