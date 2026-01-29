@@ -12,6 +12,7 @@ struct SnakeGameView: View {
     @State private var showSubmissionError = false
     @State private var showSubmissionSuccess = false
     @State private var scoreSubmitted = false
+    @State private var godModeKeyCount = 0
 
     var body: some View {
         VStack(spacing: 20) {
@@ -20,6 +21,15 @@ struct SnakeGameView: View {
                 Text("Snake Game")
                     .font(.title.bold())
                 Spacer()
+                if engine.godMode {
+                    Label("GOD MODE", systemImage: "sparkles")
+                        .font(.headline)
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.yellow.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
                 Text("Score: \(engine.score)")
                     .font(.title2.monospacedDigit())
                     .foregroundStyle(.green)
@@ -125,6 +135,7 @@ struct SnakeGameView: View {
 
                                     Button("Play Again") {
                                         scoreSubmitted = false
+                                        godModeKeyCount = 0
                                         engine.resetGame()
                                     }
                                     .buttonStyle(.bordered)
@@ -161,6 +172,7 @@ struct SnakeGameView: View {
                 if engine.gameState != .ready {
                     Button("Reset") {
                         scoreSubmitted = false
+                        godModeKeyCount = 0
                         engine.resetGame()
                     }
                     .buttonStyle(.bordered)
@@ -223,6 +235,7 @@ struct SnakeGameView: View {
             Button("Play Again") {
                 showSubmissionSuccess = false
                 scoreSubmitted = false
+                godModeKeyCount = 0
                 engine.resetGame()
             }
         } message: {
@@ -272,15 +285,32 @@ struct SnakeGameView: View {
         switch event.keyCode {
         case 13: // W key
             engine.changeDirection(.up)
+            godModeKeyCount = 0
         case 1: // S key
             engine.changeDirection(.down)
+            godModeKeyCount = 0
         case 0: // A key
             engine.changeDirection(.left)
+            godModeKeyCount = 0
         case 2: // D key
             engine.changeDirection(.right)
+            godModeKeyCount = 0
         case 49: // Space bar
             handleSpaceBar()
+            godModeKeyCount = 0
+        case 31: // O key - god mode cheat code
+            if engine.gameState == .paused {
+                godModeKeyCount += 1
+                if godModeKeyCount >= 5 {
+                    engine.toggleGodMode()
+                    godModeKeyCount = 0
+                }
+            } else {
+                godModeKeyCount = 0
+            }
         default:
+            // Reset counter if any other key is pressed
+            godModeKeyCount = 0
             break
         }
     }

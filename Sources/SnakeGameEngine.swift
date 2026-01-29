@@ -7,6 +7,7 @@ class SnakeGameEngine: ObservableObject {
     @Published var score: Int = 0
     @Published var gameState: GameState = .ready
     @Published var currentSpeed: TimeInterval
+    @Published var godMode: Bool = false
 
     private var currentDirection: Direction = .right
     private var directionQueue: [Direction] = []
@@ -64,7 +65,12 @@ class SnakeGameEngine: ObservableObject {
         score = 0
         currentSpeed = GameConstants.initialSpeed
         gameState = .ready
+        godMode = false
         spawnFood()
+    }
+
+    func toggleGodMode() {
+        godMode.toggle()
     }
 
     // MARK: - Direction Control
@@ -111,16 +117,24 @@ class SnakeGameEngine: ObservableObject {
         }
 
         // Calculate new head position
-        let newHead = snake.head.move(in: currentDirection)
+        var newHead = snake.head.move(in: currentDirection)
 
-        // Check wall collision
+        // Handle wall collision
         if newHead.x < 0 || newHead.x >= GameConstants.gridSize ||
            newHead.y < 0 || newHead.y >= GameConstants.gridSize {
-            endGame()
-            return
+            if godMode {
+                // Wrap around walls in god mode
+                newHead = Position(
+                    x: (newHead.x + GameConstants.gridSize) % GameConstants.gridSize,
+                    y: (newHead.y + GameConstants.gridSize) % GameConstants.gridSize
+                )
+            } else {
+                endGame()
+                return
+            }
         }
 
-        // Check self collision
+        // Check self collision (always active, even in god mode)
         if snake.contains(newHead) {
             endGame()
             return
