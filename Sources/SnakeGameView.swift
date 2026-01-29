@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct SnakeGameView: View {
+    @Binding var selectedTab: AppTab
     @StateObject private var engine = SnakeGameEngine()
     @State private var keyMonitor: Any?
     @State private var showNamePrompt = false
@@ -10,6 +11,7 @@ struct SnakeGameView: View {
     @State private var submissionError: String?
     @State private var showSubmissionError = false
     @State private var showSubmissionSuccess = false
+    @State private var scoreSubmitted = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -119,9 +121,10 @@ struct SnakeGameView: View {
                                     }
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.large)
-                                    .disabled(engine.score == 0)
+                                    .disabled(engine.score == 0 || scoreSubmitted)
 
                                     Button("Play Again") {
+                                        scoreSubmitted = false
                                         engine.resetGame()
                                     }
                                     .buttonStyle(.bordered)
@@ -157,6 +160,7 @@ struct SnakeGameView: View {
 
                 if engine.gameState != .ready {
                     Button("Reset") {
+                        scoreSubmitted = false
                         engine.resetGame()
                     }
                     .buttonStyle(.bordered)
@@ -214,9 +218,11 @@ struct SnakeGameView: View {
         .alert("Score Submitted!", isPresented: $showSubmissionSuccess) {
             Button("View Leaderboard") {
                 showSubmissionSuccess = false
+                selectedTab = .leaderboard
             }
             Button("Play Again") {
                 showSubmissionSuccess = false
+                scoreSubmitted = false
                 engine.resetGame()
             }
         } message: {
@@ -236,6 +242,7 @@ struct SnakeGameView: View {
         do {
             _ = try await APIClient.shared.submitScore(playerName: trimmedName, score: engine.score)
             playerName = ""
+            scoreSubmitted = true
             showSubmissionSuccess = true
         } catch {
             submissionError = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -293,6 +300,7 @@ struct SnakeGameView: View {
 }
 
 #Preview {
-    SnakeGameView()
+    @Previewable @State var selectedTab: AppTab = .snakeGame
+    SnakeGameView(selectedTab: $selectedTab)
         .frame(width: 700, height: 800)
 }
