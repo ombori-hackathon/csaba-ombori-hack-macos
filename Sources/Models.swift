@@ -33,21 +33,33 @@ struct LeaderboardEntry: Codable, Identifiable {
         score = try container.decode(Int.self, forKey: .score)
 
         let timestampString = try container.decode(String.self, forKey: .timestamp)
+
+        // Try parsing with fractional seconds first
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
         if let date = formatter.date(from: timestampString) {
             timestamp = date
         } else {
+            // Try without fractional seconds
             formatter.formatOptions = [.withInternetDateTime]
             if let date = formatter.date(from: timestampString) {
                 timestamp = date
             } else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .timestamp,
-                    in: container,
-                    debugDescription: "Date string does not match expected format"
-                )
+                // Fallback: manually parse using DateFormatter for Python datetime format
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+                dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+                if let date = dateFormatter.date(from: timestampString) {
+                    timestamp = date
+                } else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .timestamp,
+                        in: container,
+                        debugDescription: "Date string '\(timestampString)' does not match expected format"
+                    )
+                }
             }
         }
     }

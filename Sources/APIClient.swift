@@ -46,6 +46,8 @@ class APIClient {
             return entry
         } catch let error as APIError {
             throw error
+        } catch let error as DecodingError {
+            throw APIError.decodingError(error)
         } catch {
             throw APIError.networkError(error)
         }
@@ -73,6 +75,8 @@ class APIClient {
             return leaderboardResponse.entries
         } catch let error as APIError {
             throw error
+        } catch let error as DecodingError {
+            throw APIError.decodingError(error)
         } catch {
             throw APIError.networkError(error)
         }
