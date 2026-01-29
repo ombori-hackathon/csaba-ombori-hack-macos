@@ -53,19 +53,33 @@ struct SnakeGameView: View {
 
             // Game board
             ZStack {
-                // Background with neumorphic effect
+                // Desert background
                 Rectangle()
-                    .fill(Color.black)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.85, green: 0.75, blue: 0.55),  // Light sand
+                                Color(red: 0.8, green: 0.7, blue: 0.5),     // Medium sand
+                                Color(red: 0.75, green: 0.65, blue: 0.45)   // Dark sand
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
-                    .shadow(color: Color.black.opacity(0.5), radius: 8, x: -4, y: -4)
-                    .shadow(color: Color.white.opacity(0.1), radius: 8, x: 4, y: 4)
-                    .border(Color.gray, width: 2)
+                    .shadow(color: Color.black.opacity(0.3), radius: 8, x: -4, y: -4)
+                    .shadow(color: Color.white.opacity(0.2), radius: 8, x: 4, y: 4)
+                    .border(Color(red: 0.6, green: 0.5, blue: 0.35), width: 3)
 
                 // Game canvas with 60fps animation
                 TimelineView(.animation) { timeline in
                     Canvas { context, size in
                         updateAnimationProgress(date: timeline.date)
-                    // Draw grid lines (optional, for visual aid)
+
+                    // Draw desert terrain texture
+                    drawDesertTexture(context: context, size: size)
+
+                    // Draw subtle grid lines (sand ripples)
                     context.stroke(
                         Path { path in
                             for i in 0...GameConstants.gridSize {
@@ -76,7 +90,7 @@ struct SnakeGameView: View {
                                 path.addLine(to: CGPoint(x: size.width, y: offset))
                             }
                         },
-                        with: .color(.gray.opacity(0.2)),
+                        with: .color(Color(red: 0.7, green: 0.6, blue: 0.4).opacity(0.15)),
                         lineWidth: 0.5
                     )
 
@@ -387,98 +401,367 @@ struct SnakeGameView: View {
                     height: GameConstants.cellSize - 2
                 )
 
-                let bodyColor = Color(red: 0, green: 0.7, blue: 0)
+                // Realistic snake body coloring - olive green with pattern
+                let baseColor = Color(red: 0.4, green: 0.6, blue: 0.2)  // Olive green
+                let patternColor = Color(red: 0.25, green: 0.4, blue: 0.15)  // Darker green
+                let bellyColor = Color(red: 0.7, green: 0.8, blue: 0.5)  // Light yellow-green
 
-                // Neumorphic body segment
+                // Draw body segment with gradient (darker on top, lighter on bottom for 3D effect)
+                let bodyGradient = Gradient(colors: [patternColor, baseColor, bellyColor])
                 context.fill(
-                    Path(roundedRect: rect, cornerRadius: 5),
-                    with: .color(bodyColor)
+                    Path(roundedRect: rect, cornerRadius: 6),
+                    with: .linearGradient(
+                        bodyGradient,
+                        startPoint: CGPoint(x: rect.minX, y: rect.minY),
+                        endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
+                    )
                 )
 
-                // Inner shadow for depth effect
+                // Add scale pattern texture
+                drawScalePattern(context: context, in: rect, segmentIndex: index)
+
+                // Inner shadow for depth
                 var innerShadowContext = context
                 innerShadowContext.addFilter(.shadow(color: .black.opacity(0.3), radius: 2, x: -1, y: -1))
                 innerShadowContext.fill(
-                    Path(roundedRect: rect.insetBy(dx: 1, dy: 1), cornerRadius: 4),
-                    with: .color(bodyColor.opacity(0.1))
+                    Path(roundedRect: rect.insetBy(dx: 1, dy: 1), cornerRadius: 5),
+                    with: .color(.black.opacity(0.05))
                 )
             }
         }
     }
 
     private func drawSnakeHead(context: GraphicsContext, position: CGPoint, direction: Direction) {
-        let headRadius = GameConstants.cellSize / 2 - 1
-        let headRect = CGRect(
-            x: position.x - headRadius,
-            y: position.y - headRadius,
-            width: headRadius * 2,
-            height: headRadius * 2
+        let headSize = GameConstants.cellSize - 2
+
+        // Realistic snake colors
+        let headBaseColor = Color(red: 0.35, green: 0.55, blue: 0.2)  // Olive green
+        let headDarkColor = Color(red: 0.2, green: 0.35, blue: 0.1)  // Dark green pattern
+        let headLightColor = Color(red: 0.65, green: 0.75, blue: 0.45)  // Light belly
+
+        // Create triangular/diamond head shape based on direction
+        var headPath = Path()
+
+        switch direction {
+        case .right:
+            // Head pointing right (triangle)
+            headPath.move(to: CGPoint(x: position.x + headSize/2, y: position.y))  // Tip
+            headPath.addLine(to: CGPoint(x: position.x - headSize/3, y: position.y - headSize/2.5))  // Top left
+            headPath.addLine(to: CGPoint(x: position.x - headSize/2, y: position.y))  // Back center
+            headPath.addLine(to: CGPoint(x: position.x - headSize/3, y: position.y + headSize/2.5))  // Bottom left
+            headPath.closeSubpath()
+
+        case .left:
+            // Head pointing left
+            headPath.move(to: CGPoint(x: position.x - headSize/2, y: position.y))  // Tip
+            headPath.addLine(to: CGPoint(x: position.x + headSize/3, y: position.y - headSize/2.5))  // Top right
+            headPath.addLine(to: CGPoint(x: position.x + headSize/2, y: position.y))  // Back center
+            headPath.addLine(to: CGPoint(x: position.x + headSize/3, y: position.y + headSize/2.5))  // Bottom right
+            headPath.closeSubpath()
+
+        case .up:
+            // Head pointing up
+            headPath.move(to: CGPoint(x: position.x, y: position.y - headSize/2))  // Tip
+            headPath.addLine(to: CGPoint(x: position.x - headSize/2.5, y: position.y + headSize/3))  // Left
+            headPath.addLine(to: CGPoint(x: position.x, y: position.y + headSize/2))  // Back center
+            headPath.addLine(to: CGPoint(x: position.x + headSize/2.5, y: position.y + headSize/3))  // Right
+            headPath.closeSubpath()
+
+        case .down:
+            // Head pointing down
+            headPath.move(to: CGPoint(x: position.x, y: position.y + headSize/2))  // Tip
+            headPath.addLine(to: CGPoint(x: position.x - headSize/2.5, y: position.y - headSize/3))  // Left
+            headPath.addLine(to: CGPoint(x: position.x, y: position.y - headSize/2))  // Back center
+            headPath.addLine(to: CGPoint(x: position.x + headSize/2.5, y: position.y - headSize/3))  // Right
+            headPath.closeSubpath()
+        }
+
+        // Draw shadow
+        var shadowContext = context
+        shadowContext.addFilter(.shadow(color: .black.opacity(0.4), radius: 3, x: 1, y: 1))
+        shadowContext.fill(headPath, with: .color(headBaseColor))
+
+        // Fill head with gradient
+        let headGradient = Gradient(colors: [headDarkColor, headBaseColor, headLightColor])
+        context.fill(
+            headPath,
+            with: .linearGradient(
+                headGradient,
+                startPoint: CGPoint(x: position.x - headSize/2, y: position.y - headSize/2),
+                endPoint: CGPoint(x: position.x + headSize/2, y: position.y + headSize/2)
+            )
         )
 
-        // Head circle with neumorphic shadow
-        let headColor = Color(red: 0, green: 0.9, blue: 0.1)
+        // Add pattern/scales on top of head
+        drawHeadPattern(context: context, position: position, direction: direction, headSize: headSize)
 
-        // Outer glow
-        var glowContext = context
-        glowContext.addFilter(.shadow(color: .green.opacity(0.4), radius: 4, x: 0, y: 0))
-        glowContext.fill(Path(ellipseIn: headRect), with: .color(headColor))
+        // Draw realistic reptilian eyes with vertical slit pupils
+        drawReptilianEyes(context: context, position: position, direction: direction, headSize: headSize)
 
-        // Main head
-        context.fill(Path(ellipseIn: headRect), with: .color(headColor))
+        // Draw nostrils
+        drawNostrils(context: context, position: position, direction: direction, headSize: headSize)
+    }
 
-        // Inner shadow for depth
-        var innerContext = context
-        innerContext.addFilter(.shadow(color: .black.opacity(0.3), radius: 3, x: -2, y: -2))
-        innerContext.fill(
-            Path(ellipseIn: headRect.insetBy(dx: 2, dy: 2)),
-            with: .color(headColor.opacity(0.1))
-        )
-
-        // Draw eyes based on direction
-        let eyeOffset: (CGFloat, CGFloat) = {
+    private func drawReptilianEyes(context: GraphicsContext, position: CGPoint, direction: Direction, headSize: CGFloat) {
+        // Eye positions based on direction
+        let eyePositions: [(CGPoint, CGPoint)] = {
             switch direction {
-            case .up: return (0, -3)
-            case .down: return (0, 3)
-            case .left: return (-3, 0)
-            case .right: return (3, 0)
+            case .right:
+                return [
+                    (CGPoint(x: position.x + headSize/6, y: position.y - headSize/4), CGPoint(x: position.x + headSize/6, y: position.y + headSize/4))
+                ]
+            case .left:
+                return [
+                    (CGPoint(x: position.x - headSize/6, y: position.y - headSize/4), CGPoint(x: position.x - headSize/6, y: position.y + headSize/4))
+                ]
+            case .up:
+                return [
+                    (CGPoint(x: position.x - headSize/4, y: position.y - headSize/6), CGPoint(x: position.x + headSize/4, y: position.y - headSize/6))
+                ]
+            case .down:
+                return [
+                    (CGPoint(x: position.x - headSize/4, y: position.y + headSize/6), CGPoint(x: position.x + headSize/4, y: position.y + headSize/6))
+                ]
             }
         }()
 
-        // Determine eye positions based on direction
-        let (leftEyeX, leftEyeY, rightEyeX, rightEyeY): (CGFloat, CGFloat, CGFloat, CGFloat)
-        switch direction {
-        case .up, .down:
-            leftEyeX = position.x - 4
-            rightEyeX = position.x + 4
-            leftEyeY = position.y + eyeOffset.1
-            rightEyeY = position.y + eyeOffset.1
-        case .left, .right:
-            leftEyeX = position.x + eyeOffset.0
-            rightEyeX = position.x + eyeOffset.0
-            leftEyeY = position.y - 4
-            rightEyeY = position.y + 4
+        for eyePos in [eyePositions[0].0, eyePositions[0].1] {
+            // Eye socket (darker outline)
+            let eyeSocketSize: CGFloat = 5
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: eyePos.x - eyeSocketSize/2,
+                    y: eyePos.y - eyeSocketSize/2,
+                    width: eyeSocketSize,
+                    height: eyeSocketSize
+                )),
+                with: .color(Color(red: 0.15, green: 0.2, blue: 0.1))
+            )
+
+            // Eye (yellow-green with black outline)
+            let eyeSize: CGFloat = 4
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: eyePos.x - eyeSize/2,
+                    y: eyePos.y - eyeSize/2,
+                    width: eyeSize,
+                    height: eyeSize
+                )),
+                with: .color(Color(red: 0.8, green: 0.85, blue: 0.3))
+            )
+
+            // Vertical slit pupil (like a real snake)
+            let pupilWidth: CGFloat = 0.8
+            let pupilHeight: CGFloat = 3
+            context.fill(
+                Path(roundedRect: CGRect(
+                    x: eyePos.x - pupilWidth/2,
+                    y: eyePos.y - pupilHeight/2,
+                    width: pupilWidth,
+                    height: pupilHeight
+                ), cornerRadius: 0.4),
+                with: .color(.black)
+            )
+
+            // Eye shine
+            let shineSize: CGFloat = 1
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: eyePos.x - 1,
+                    y: eyePos.y - 1.5,
+                    width: shineSize,
+                    height: shineSize
+                )),
+                with: .color(.white.opacity(0.7))
+            )
+        }
+    }
+
+    private func drawNostrils(context: GraphicsContext, position: CGPoint, direction: Direction, headSize: CGFloat) {
+        let nostrilPositions: [CGPoint] = {
+            switch direction {
+            case .right:
+                return [
+                    CGPoint(x: position.x + headSize/3, y: position.y - 2),
+                    CGPoint(x: position.x + headSize/3, y: position.y + 2)
+                ]
+            case .left:
+                return [
+                    CGPoint(x: position.x - headSize/3, y: position.y - 2),
+                    CGPoint(x: position.x - headSize/3, y: position.y + 2)
+                ]
+            case .up:
+                return [
+                    CGPoint(x: position.x - 2, y: position.y - headSize/3),
+                    CGPoint(x: position.x + 2, y: position.y - headSize/3)
+                ]
+            case .down:
+                return [
+                    CGPoint(x: position.x - 2, y: position.y + headSize/3),
+                    CGPoint(x: position.x + 2, y: position.y + headSize/3)
+                ]
+            }
+        }()
+
+        for nostrilPos in nostrilPositions {
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: nostrilPos.x - 0.8,
+                    y: nostrilPos.y - 0.8,
+                    width: 1.6,
+                    height: 1.6
+                )),
+                with: .color(Color(red: 0.1, green: 0.15, blue: 0.05).opacity(0.8))
+            )
+        }
+    }
+
+    private func drawHeadPattern(context: GraphicsContext, position: CGPoint, direction: Direction, headSize: CGFloat) {
+        // Add dark stripe pattern on head
+        let patternColor = Color(red: 0.2, green: 0.3, blue: 0.1).opacity(0.5)
+
+        // Draw a few small dark spots/stripes for pattern
+        let patternRect1 = CGRect(
+            x: position.x - 3,
+            y: position.y - 5,
+            width: 6,
+            height: 2
+        )
+        context.fill(Path(ellipseIn: patternRect1), with: .color(patternColor))
+
+        let patternRect2 = CGRect(
+            x: position.x - 3,
+            y: position.y + 3,
+            width: 6,
+            height: 2
+        )
+        context.fill(Path(ellipseIn: patternRect2), with: .color(patternColor))
+    }
+
+    private func drawScalePattern(context: GraphicsContext, in rect: CGRect, segmentIndex: Int) {
+        // Draw subtle scale pattern on body
+        let scaleColor = Color(red: 0.2, green: 0.35, blue: 0.1).opacity(0.3)
+
+        // Alternating pattern based on segment index
+        let offset = CGFloat(segmentIndex % 2) * 3
+
+        // Draw small overlapping circles to simulate scales
+        let scaleSize: CGFloat = 4
+        let spacing: CGFloat = 3
+
+        for x in stride(from: rect.minX + offset, to: rect.maxX, by: spacing) {
+            for y in stride(from: rect.minY, to: rect.maxY, by: spacing) {
+                context.fill(
+                    Path(ellipseIn: CGRect(
+                        x: x,
+                        y: y,
+                        width: scaleSize,
+                        height: scaleSize
+                    )),
+                    with: .color(scaleColor)
+                )
+            }
+        }
+    }
+
+    private func drawDesertTexture(context: GraphicsContext, size: CGSize) {
+        // Draw sand texture with random variations
+        let sandDarkColor = Color(red: 0.7, green: 0.6, blue: 0.4).opacity(0.15)
+        let sandLightColor = Color(red: 0.9, green: 0.8, blue: 0.65).opacity(0.1)
+
+        // Draw sand dunes pattern (wavy lines)
+        for y in stride(from: CGFloat(0), to: size.height, by: 40) {
+            var dunePath = Path()
+            dunePath.move(to: CGPoint(x: 0, y: y))
+
+            for x in stride(from: CGFloat(0), to: size.width, by: 30) {
+                let waveHeight: CGFloat = sin(x / 50) * 8
+                dunePath.addLine(to: CGPoint(x: x, y: y + waveHeight))
+            }
+
+            context.stroke(dunePath, with: .color(sandDarkColor), lineWidth: 2)
         }
 
-        // Draw eyes
-        let eyeSize: CGFloat = 3
-        context.fill(
-            Path(ellipseIn: CGRect(x: leftEyeX - eyeSize/2, y: leftEyeY - eyeSize/2, width: eyeSize, height: eyeSize)),
-            with: .color(.black)
+        // Draw small rocks scattered around (static positions)
+        let rockColor = Color(red: 0.5, green: 0.4, blue: 0.3).opacity(0.4)
+        let rockPositions: [(CGFloat, CGFloat, CGFloat)] = [
+            (50, 80, 6),
+            (420, 150, 5),
+            (200, 350, 7),
+            (380, 420, 5),
+            (120, 280, 4),
+            (300, 100, 6),
+            (150, 480, 5),
+            (450, 320, 7)
+        ]
+
+        for (x, y, size) in rockPositions {
+            // Draw irregular rock shape
+            context.fill(
+                Path(ellipseIn: CGRect(x: x, y: y, width: size, height: size * 0.8)),
+                with: .color(rockColor)
+            )
+            // Add shadow for rock
+            context.fill(
+                Path(ellipseIn: CGRect(x: x + 1, y: y + size * 0.6, width: size, height: size * 0.3)),
+                with: .color(Color.black.opacity(0.15))
+            )
+        }
+
+        // Add some sand grain texture
+        for _ in 0..<50 {
+            let x = CGFloat.random(in: 0...size.width)
+            let y = CGFloat.random(in: 0...size.height)
+            let grainSize = CGFloat.random(in: 0.5...1.5)
+
+            context.fill(
+                Path(ellipseIn: CGRect(x: x, y: y, width: grainSize, height: grainSize)),
+                with: .color(sandLightColor)
+            )
+        }
+
+        // Draw small cacti silhouettes (optional desert elements)
+        drawCactus(context: context, at: CGPoint(x: 30, y: 30), size: 12)
+        drawCactus(context: context, at: CGPoint(x: 470, y: 450), size: 10)
+    }
+
+    private func drawCactus(context: GraphicsContext, at position: CGPoint, size: CGFloat) {
+        let cactusColor = Color(red: 0.3, green: 0.5, blue: 0.2).opacity(0.3)
+
+        // Main trunk
+        let trunkRect = CGRect(
+            x: position.x - size/4,
+            y: position.y,
+            width: size/2,
+            height: size
         )
         context.fill(
-            Path(ellipseIn: CGRect(x: rightEyeX - eyeSize/2, y: rightEyeY - eyeSize/2, width: eyeSize, height: eyeSize)),
-            with: .color(.black)
+            Path(roundedRect: trunkRect, cornerRadius: size/6),
+            with: .color(cactusColor)
         )
 
-        // Eye highlights
-        let highlightSize: CGFloat = 1
-        context.fill(
-            Path(ellipseIn: CGRect(x: leftEyeX - 0.5, y: leftEyeY - 1, width: highlightSize, height: highlightSize)),
-            with: .color(.white.opacity(0.8))
+        // Left arm
+        let leftArmRect = CGRect(
+            x: position.x - size/2,
+            y: position.y + size/3,
+            width: size/3,
+            height: size/2.5
         )
         context.fill(
-            Path(ellipseIn: CGRect(x: rightEyeX - 0.5, y: rightEyeY - 1, width: highlightSize, height: highlightSize)),
-            with: .color(.white.opacity(0.8))
+            Path(roundedRect: leftArmRect, cornerRadius: size/8),
+            with: .color(cactusColor)
+        )
+
+        // Right arm
+        let rightArmRect = CGRect(
+            x: position.x + size/6,
+            y: position.y + size/2.5,
+            width: size/3,
+            height: size/3
+        )
+        context.fill(
+            Path(roundedRect: rightArmRect, cornerRadius: size/8),
+            with: .color(cactusColor)
         )
     }
 
