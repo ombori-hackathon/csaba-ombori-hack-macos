@@ -3,13 +3,15 @@ import Combine
 
 class SnakeGameEngine: ObservableObject {
     @Published var snake: Snake
-    @Published var food: Position
+    @Published var mouse: Position
     @Published var score: Int = 0
     @Published var gameState: GameState = .ready
     @Published var currentSpeed: TimeInterval
     @Published var godMode: Bool = false
 
     private var currentDirection: Direction = .right
+    var mouseDirection: Direction = .right  // Public for rendering
+    private var mouseTickCounter: Int = 0
 
     var currentVisualDirection: Direction {
         guard snake.body.count >= 2 else { return currentDirection }
@@ -36,8 +38,8 @@ class SnakeGameEngine: ObservableObject {
             Position(x: centerX - 2, y: centerY)
         ])
         self.currentSpeed = GameConstants.initialSpeed
-        self.food = Position(x: 0, y: 0)
-        spawnFood()
+        self.mouse = Position(x: 0, y: 0)
+        spawnMouse()
     }
 
     // MARK: - Game Control
@@ -79,7 +81,8 @@ class SnakeGameEngine: ObservableObject {
         currentSpeed = GameConstants.initialSpeed
         gameState = .ready
         godMode = false
-        spawnFood()
+        mouseTickCounter = 0
+        spawnMouse()
     }
 
     func toggleGodMode() {
@@ -124,6 +127,9 @@ class SnakeGameEngine: ObservableObject {
     private func update() {
         guard gameState == .playing else { return }
 
+        // Update mouse position (50% speed - every 2 ticks)
+        updateMousePosition()
+
         // Process direction queue
         if !directionQueue.isEmpty {
             currentDirection = directionQueue.removeFirst()
@@ -153,13 +159,13 @@ class SnakeGameEngine: ObservableObject {
             return
         }
 
-        // Check food collision
+        // Check mouse collision
         var newBody = [newHead] + snake.body
-        if newHead == food {
+        if newHead == mouse {
             // Snake grows, keep tail
             score += GameConstants.scorePerFood
             increaseSpeed()
-            spawnFood()
+            spawnMouse()
         } else {
             // Remove tail (snake moves without growing)
             newBody.removeLast()
@@ -168,9 +174,9 @@ class SnakeGameEngine: ObservableObject {
         snake.body = newBody
     }
 
-    // MARK: - Food Management
+    // MARK: - Mouse Management
 
-    private func spawnFood() {
+    private func spawnMouse() {
         var validPositions: [Position] = []
 
         for x in 0..<GameConstants.gridSize {
@@ -183,8 +189,46 @@ class SnakeGameEngine: ObservableObject {
         }
 
         if let randomPosition = validPositions.randomElement() {
-            food = randomPosition
+            mouse = randomPosition
+            // Initialize random starting direction for Brownian motion
+            mouseDirection = [Direction.up, .down, .left, .right].randomElement()!
         }
+    }
+
+    private func updateMousePosition() {
+        // Move mouse every 2 ticks (50% speed)
+        mouseTickCounter += 1
+        if mouseTickCounter < 2 {
+            return
+        }
+        mouseTickCounter = 0
+
+        // Brownian motion: 70% chance to continue, 30% chance to change direction
+        if Double.random(in: 0...1) > 0.7 {
+            // Pick random new direction
+            mouseDirection = [Direction.up, .down, .left, .right].randomElement()!
+        }
+
+        // Calculate new position
+        let newPosition = mouse.move(in: mouseDirection)
+
+        // Handle wall collision - mouse always bounces (even in god mode)
+        if newPosition.x < 0 || newPosition.x >= GameConstants.gridSize ||
+           newPosition.y < 0 || newPosition.y >= GameConstants.gridSize {
+            // Bounce back - reverse direction
+            mouseDirection = mouseDirection.opposite
+            return
+        }
+
+        // Optional: Simple snake avoidance (don't move into snake body)
+        if snake.contains(newPosition) {
+            // Try a random different direction
+            mouseDirection = [Direction.up, .down, .left, .right].randomElement()!
+            return
+        }
+
+        // Update mouse position
+        mouse = newPosition
     }
 
     // MARK: - Speed Management

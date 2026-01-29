@@ -253,8 +253,8 @@ struct SnakeGameView: View {
                         lineWidth: 0.5
                     )
 
-                    // Draw food (3D apple)
-                    drawApple(context: context, at: engine.food)
+                    // Draw mouse (animated)
+                    drawMouse(context: context, at: engine.mouse)
 
                     // Draw snake with smooth interpolation
                     drawSnake(context: context)
@@ -1314,6 +1314,272 @@ struct SnakeGameView: View {
                 lineWidth: 0.5
             )
         }
+    }
+
+    private func drawMouse(context: GraphicsContext, at position: Position) {
+        let center = gridToScreen(position)
+        let mouseSize = GameConstants.cellSize * 0.8  // Smaller than apple
+
+        // Get mouse direction for orientation
+        let direction = engine.mouseDirection
+
+        // Mouse body - gray with gradient
+        let bodyRect = CGRect(
+            x: center.x - mouseSize / 2,
+            y: center.y - mouseSize / 2,
+            width: mouseSize,
+            height: mouseSize * 0.7
+        )
+
+        // Drop shadow for depth
+        var shadowCtx = context
+        shadowCtx.addFilter(.shadow(color: .black.opacity(0.4), radius: 4, x: 2, y: 2))
+        shadowCtx.fill(Path(ellipseIn: bodyRect), with: .color(.gray))
+
+        // Main body with radial gradient (light on top, dark on bottom)
+        let bodyGradient = Gradient(colors: [
+            Color(red: 0.75, green: 0.75, blue: 0.75),  // Light gray
+            Color(red: 0.60, green: 0.60, blue: 0.60),  // Mid gray
+            Color(red: 0.45, green: 0.45, blue: 0.45)   // Dark gray
+        ])
+        context.fill(
+            Path(ellipseIn: bodyRect),
+            with: .radialGradient(
+                bodyGradient,
+                center: CGPoint(x: center.x - mouseSize * 0.15, y: center.y - mouseSize * 0.15),
+                startRadius: 0,
+                endRadius: mouseSize * 0.5
+            )
+        )
+
+        // Draw ears (position based on direction - point backward)
+        let earSize: CGFloat = mouseSize * 0.3
+        let earOffset: CGFloat = mouseSize * 0.25
+
+        let earPositions: [(CGPoint, CGPoint)] = {
+            switch direction {
+            case .right:
+                // Ears point left (backward)
+                return [
+                    (CGPoint(x: center.x - earOffset, y: center.y - earOffset), CGPoint(x: center.x - earOffset, y: center.y + earOffset))
+                ]
+            case .left:
+                // Ears point right (backward)
+                return [
+                    (CGPoint(x: center.x + earOffset, y: center.y - earOffset), CGPoint(x: center.x + earOffset, y: center.y + earOffset))
+                ]
+            case .up:
+                // Ears point down (backward)
+                return [
+                    (CGPoint(x: center.x - earOffset, y: center.y + earOffset * 0.5), CGPoint(x: center.x + earOffset, y: center.y + earOffset * 0.5))
+                ]
+            case .down:
+                // Ears point up (backward)
+                return [
+                    (CGPoint(x: center.x - earOffset, y: center.y - earOffset * 0.5), CGPoint(x: center.x + earOffset, y: center.y - earOffset * 0.5))
+                ]
+            }
+        }()
+
+        // Draw both ears
+        for earPos in [earPositions[0].0, earPositions[0].1] {
+            // Gray outer ear
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: earPos.x - earSize/2,
+                    y: earPos.y - earSize/2,
+                    width: earSize,
+                    height: earSize
+                )),
+                with: .color(Color(red: 0.65, green: 0.65, blue: 0.65))
+            )
+
+            // Pink inner ear
+            let innerEarSize = earSize * 0.6
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: earPos.x - innerEarSize/2,
+                    y: earPos.y - innerEarSize/2,
+                    width: innerEarSize,
+                    height: innerEarSize
+                )),
+                with: .color(Color(red: 0.95, green: 0.75, blue: 0.80))
+            )
+        }
+
+        // Draw eyes (two small black dots with highlights)
+        let eyeSize: CGFloat = 2.5
+        let eyeOffset: CGFloat = mouseSize * 0.2
+
+        let eyePositions: [CGPoint] = {
+            switch direction {
+            case .right:
+                return [
+                    CGPoint(x: center.x + eyeOffset, y: center.y - eyeOffset * 0.5),
+                    CGPoint(x: center.x + eyeOffset, y: center.y + eyeOffset * 0.5)
+                ]
+            case .left:
+                return [
+                    CGPoint(x: center.x - eyeOffset, y: center.y - eyeOffset * 0.5),
+                    CGPoint(x: center.x - eyeOffset, y: center.y + eyeOffset * 0.5)
+                ]
+            case .up:
+                return [
+                    CGPoint(x: center.x - eyeOffset * 0.5, y: center.y - eyeOffset),
+                    CGPoint(x: center.x + eyeOffset * 0.5, y: center.y - eyeOffset)
+                ]
+            case .down:
+                return [
+                    CGPoint(x: center.x - eyeOffset * 0.5, y: center.y + eyeOffset),
+                    CGPoint(x: center.x + eyeOffset * 0.5, y: center.y + eyeOffset)
+                ]
+            }
+        }()
+
+        for eyePos in eyePositions {
+            // Black eye
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: eyePos.x - eyeSize/2,
+                    y: eyePos.y - eyeSize/2,
+                    width: eyeSize,
+                    height: eyeSize
+                )),
+                with: .color(.black)
+            )
+
+            // White highlight
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: eyePos.x - eyeSize/4,
+                    y: eyePos.y - eyeSize/4,
+                    width: eyeSize/2.5,
+                    height: eyeSize/2.5
+                )),
+                with: .color(.white.opacity(0.8))
+            )
+        }
+
+        // Draw nose (small pink circle at snout tip)
+        let noseSize: CGFloat = 2
+        let nosePos: CGPoint = {
+            switch direction {
+            case .right:
+                return CGPoint(x: center.x + mouseSize * 0.4, y: center.y)
+            case .left:
+                return CGPoint(x: center.x - mouseSize * 0.4, y: center.y)
+            case .up:
+                return CGPoint(x: center.x, y: center.y - mouseSize * 0.35)
+            case .down:
+                return CGPoint(x: center.x, y: center.y + mouseSize * 0.35)
+            }
+        }()
+
+        context.fill(
+            Path(ellipseIn: CGRect(
+                x: nosePos.x - noseSize/2,
+                y: nosePos.y - noseSize/2,
+                width: noseSize,
+                height: noseSize
+            )),
+            with: .color(Color(red: 0.95, green: 0.75, blue: 0.80))
+        )
+
+        // Draw tail (curved line extending backward)
+        let tailLength: CGFloat = mouseSize * 0.8
+        let tailStart: CGPoint = {
+            switch direction {
+            case .right:
+                return CGPoint(x: center.x - mouseSize * 0.4, y: center.y)
+            case .left:
+                return CGPoint(x: center.x + mouseSize * 0.4, y: center.y)
+            case .up:
+                return CGPoint(x: center.x, y: center.y + mouseSize * 0.35)
+            case .down:
+                return CGPoint(x: center.x, y: center.y - mouseSize * 0.35)
+            }
+        }()
+
+        let tailEnd: CGPoint = {
+            switch direction {
+            case .right:
+                return CGPoint(x: tailStart.x - tailLength, y: tailStart.y + tailLength * 0.3)
+            case .left:
+                return CGPoint(x: tailStart.x + tailLength, y: tailStart.y + tailLength * 0.3)
+            case .up:
+                return CGPoint(x: tailStart.x + tailLength * 0.3, y: tailStart.y + tailLength)
+            case .down:
+                return CGPoint(x: tailStart.x + tailLength * 0.3, y: tailStart.y - tailLength)
+            }
+        }()
+
+        var tailPath = Path()
+        tailPath.move(to: tailStart)
+        tailPath.addQuadCurve(
+            to: tailEnd,
+            control: CGPoint(
+                x: (tailStart.x + tailEnd.x) / 2 + (tailEnd.y - tailStart.y) * 0.3,
+                y: (tailStart.y + tailEnd.y) / 2 - (tailEnd.x - tailStart.x) * 0.3
+            )
+        )
+
+        context.stroke(
+            tailPath,
+            with: .color(Color(red: 0.85, green: 0.70, blue: 0.75)),
+            style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
+        )
+
+        // Draw whiskers (3 on each side)
+        let whiskerLength: CGFloat = mouseSize * 0.4
+        let whiskerColor = Color(red: 0.3, green: 0.3, blue: 0.3).opacity(0.6)
+
+        let whiskerBase: CGPoint = {
+            switch direction {
+            case .right:
+                return CGPoint(x: center.x + mouseSize * 0.3, y: center.y)
+            case .left:
+                return CGPoint(x: center.x - mouseSize * 0.3, y: center.y)
+            case .up:
+                return CGPoint(x: center.x, y: center.y - mouseSize * 0.25)
+            case .down:
+                return CGPoint(x: center.x, y: center.y + mouseSize * 0.25)
+            }
+        }()
+
+        // Draw 3 whiskers on each side
+        for i in -1...1 {
+            var whiskerPath = Path()
+            let offset = CGFloat(i) * 2
+
+            switch direction {
+            case .right:
+                whiskerPath.move(to: CGPoint(x: whiskerBase.x, y: whiskerBase.y + offset))
+                whiskerPath.addLine(to: CGPoint(x: whiskerBase.x + whiskerLength, y: whiskerBase.y + offset + CGFloat(i) * 3))
+            case .left:
+                whiskerPath.move(to: CGPoint(x: whiskerBase.x, y: whiskerBase.y + offset))
+                whiskerPath.addLine(to: CGPoint(x: whiskerBase.x - whiskerLength, y: whiskerBase.y + offset + CGFloat(i) * 3))
+            case .up:
+                whiskerPath.move(to: CGPoint(x: whiskerBase.x + offset, y: whiskerBase.y))
+                whiskerPath.addLine(to: CGPoint(x: whiskerBase.x + offset + CGFloat(i) * 3, y: whiskerBase.y - whiskerLength))
+            case .down:
+                whiskerPath.move(to: CGPoint(x: whiskerBase.x + offset, y: whiskerBase.y))
+                whiskerPath.addLine(to: CGPoint(x: whiskerBase.x + offset + CGFloat(i) * 3, y: whiskerBase.y + whiskerLength))
+            }
+
+            context.stroke(whiskerPath, with: .color(whiskerColor), lineWidth: 0.5)
+        }
+
+        // Specular highlight on body
+        let highlightRect = CGRect(
+            x: center.x - mouseSize * 0.25,
+            y: center.y - mouseSize * 0.25,
+            width: mouseSize * 0.3,
+            height: mouseSize * 0.2
+        )
+        context.fill(
+            Path(ellipseIn: highlightRect),
+            with: .color(.white.opacity(0.3))
+        )
     }
 
     private func drawApple(context: GraphicsContext, at position: Position) {
