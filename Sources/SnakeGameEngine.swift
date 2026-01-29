@@ -10,6 +10,19 @@ class SnakeGameEngine: ObservableObject {
     @Published var godMode: Bool = false
 
     private var currentDirection: Direction = .right
+
+    var currentVisualDirection: Direction {
+        guard snake.body.count >= 2 else { return currentDirection }
+        let head = snake.body[0]
+        let neck = snake.body[1]
+
+        if head.x > neck.x { return .right }
+        if head.x < neck.x { return .left }
+        if head.y > neck.y { return .down }
+        if head.y < neck.y { return .up }
+
+        return currentDirection
+    }
     private var directionQueue: [Direction] = []
     private var timer: Timer?
 

@@ -14,6 +14,11 @@ struct SnakeGameView: View {
     @State private var scoreSubmitted = false
     @State private var godModeKeyCount = 0
 
+    // Animation state for smooth movement
+    @State private var animationProgress: Double = 0.0
+    @State private var previousSnakeBody: [Position] = []
+    @State private var lastUpdateTime: Date = Date()
+
     var body: some View {
         VStack(spacing: 20) {
             // Header with score and status
@@ -29,23 +34,37 @@ struct SnakeGameView: View {
                         .padding(.vertical, 6)
                         .background(Color.yellow.opacity(0.2))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shadow(color: .black.opacity(0.3), radius: 3, x: -2, y: -2)
+                        .shadow(color: .yellow.opacity(0.3), radius: 3, x: 2, y: 2)
                 }
                 Text("Score: \(engine.score)")
                     .font(.title2.monospacedDigit())
                     .foregroundStyle(.green)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .shadow(color: .black.opacity(0.2), radius: 4, x: -2, y: -2)
+                            .shadow(color: .white.opacity(0.1), radius: 4, x: 2, y: 2)
+                    )
             }
             .padding(.horizontal)
 
             // Game board
             ZStack {
-                // Background
+                // Background with neumorphic effect
                 Rectangle()
                     .fill(Color.black)
                     .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
+                    .shadow(color: Color.black.opacity(0.5), radius: 8, x: -4, y: -4)
+                    .shadow(color: Color.white.opacity(0.1), radius: 8, x: 4, y: 4)
                     .border(Color.gray, width: 2)
 
-                // Game canvas
-                Canvas { context, size in
+                // Game canvas with 60fps animation
+                TimelineView(.animation) { timeline in
+                    Canvas { context, size in
+                        updateAnimationProgress(date: timeline.date)
                     // Draw grid lines (optional, for visual aid)
                     context.stroke(
                         Path { path in
@@ -61,37 +80,14 @@ struct SnakeGameView: View {
                         lineWidth: 0.5
                     )
 
-                    // Draw food
-                    let foodRect = CGRect(
-                        x: CGFloat(engine.food.x) * GameConstants.cellSize,
-                        y: CGFloat(engine.food.y) * GameConstants.cellSize,
-                        width: GameConstants.cellSize,
-                        height: GameConstants.cellSize
-                    )
-                    context.fill(
-                        Path(ellipseIn: foodRect.insetBy(dx: 2, dy: 2)),
-                        with: .color(.red)
-                    )
+                    // Draw food (3D apple)
+                    drawApple(context: context, at: engine.food)
 
-                    // Draw snake
-                    for (index, segment) in engine.snake.body.enumerated() {
-                        let rect = CGRect(
-                            x: CGFloat(segment.x) * GameConstants.cellSize,
-                            y: CGFloat(segment.y) * GameConstants.cellSize,
-                            width: GameConstants.cellSize,
-                            height: GameConstants.cellSize
-                        )
-
-                        // Head is brighter green
-                        let color: Color = index == 0 ? .green : Color(red: 0, green: 0.8, blue: 0)
-
-                        context.fill(
-                            Path(roundedRect: rect.insetBy(dx: 1, dy: 1), cornerRadius: 3),
-                            with: .color(color)
-                        )
+                    // Draw snake with smooth interpolation
+                    drawSnake(context: context)
                     }
+                    .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
                 }
-                .frame(width: GameConstants.boardSize, height: GameConstants.boardSize)
 
                 // Game state overlay
                 if engine.gameState != .playing {
@@ -326,6 +322,240 @@ struct SnakeGameView: View {
         case .gameOver:
             break
         }
+    }
+
+    // MARK: - Animation Helpers
+
+    private func updateAnimationProgress(date: Date) {
+        let timeSinceLastUpdate = date.timeIntervalSince(lastUpdateTime)
+        let progress = min(1.0, timeSinceLastUpdate / engine.currentSpeed)
+
+        // Store previous positions when snake body changes
+        if previousSnakeBody != engine.snake.body {
+            previousSnakeBody = engine.snake.body
+            lastUpdateTime = date
+            animationProgress = 0.0
+        } else {
+            animationProgress = progress
+        }
+    }
+
+    private func gridToScreen(_ position: Position) -> CGPoint {
+        CGPoint(
+            x: CGFloat(position.x) * GameConstants.cellSize + GameConstants.cellSize / 2,
+            y: CGFloat(position.y) * GameConstants.cellSize + GameConstants.cellSize / 2
+        )
+    }
+
+    private func interpolatedPosition(_ current: Position, _ previous: Position?, _ progress: Double) -> CGPoint {
+        guard let prev = previous, progress < 1.0 else {
+            return gridToScreen(current)
+        }
+        let currentPt = gridToScreen(current)
+        let prevPt = gridToScreen(prev)
+        return CGPoint(
+            x: prevPt.x + (currentPt.x - prevPt.x) * progress,
+            y: prevPt.y + (currentPt.y - prevPt.y) * progress
+        )
+    }
+
+    // MARK: - Drawing Functions
+
+    private func drawSnake(context: GraphicsContext) {
+        let body = engine.snake.body
+        guard !body.isEmpty else { return }
+
+        // Calculate interpolated positions
+        var interpolatedPositions: [CGPoint] = []
+        for (index, position) in body.enumerated() {
+            let previousPos = index < previousSnakeBody.count ? previousSnakeBody[index] : nil
+            let interpolated = interpolatedPosition(position, previousPos, animationProgress)
+            interpolatedPositions.append(interpolated)
+        }
+
+        // Draw body segments with neumorphic effect
+        for (index, position) in interpolatedPositions.enumerated() {
+            if index == 0 {
+                // Draw head
+                drawSnakeHead(context: context, position: position, direction: engine.currentVisualDirection)
+            } else {
+                // Draw body segment
+                let rect = CGRect(
+                    x: position.x - GameConstants.cellSize / 2 + 1,
+                    y: position.y - GameConstants.cellSize / 2 + 1,
+                    width: GameConstants.cellSize - 2,
+                    height: GameConstants.cellSize - 2
+                )
+
+                let bodyColor = Color(red: 0, green: 0.7, blue: 0)
+
+                // Neumorphic body segment
+                context.fill(
+                    Path(roundedRect: rect, cornerRadius: 5),
+                    with: .color(bodyColor)
+                )
+
+                // Inner shadow for depth effect
+                var innerShadowContext = context
+                innerShadowContext.addFilter(.shadow(color: .black.opacity(0.3), radius: 2, x: -1, y: -1))
+                innerShadowContext.fill(
+                    Path(roundedRect: rect.insetBy(dx: 1, dy: 1), cornerRadius: 4),
+                    with: .color(bodyColor.opacity(0.1))
+                )
+            }
+        }
+    }
+
+    private func drawSnakeHead(context: GraphicsContext, position: CGPoint, direction: Direction) {
+        let headRadius = GameConstants.cellSize / 2 - 1
+        let headRect = CGRect(
+            x: position.x - headRadius,
+            y: position.y - headRadius,
+            width: headRadius * 2,
+            height: headRadius * 2
+        )
+
+        // Head circle with neumorphic shadow
+        let headColor = Color(red: 0, green: 0.9, blue: 0.1)
+
+        // Outer glow
+        var glowContext = context
+        glowContext.addFilter(.shadow(color: .green.opacity(0.4), radius: 4, x: 0, y: 0))
+        glowContext.fill(Path(ellipseIn: headRect), with: .color(headColor))
+
+        // Main head
+        context.fill(Path(ellipseIn: headRect), with: .color(headColor))
+
+        // Inner shadow for depth
+        var innerContext = context
+        innerContext.addFilter(.shadow(color: .black.opacity(0.3), radius: 3, x: -2, y: -2))
+        innerContext.fill(
+            Path(ellipseIn: headRect.insetBy(dx: 2, dy: 2)),
+            with: .color(headColor.opacity(0.1))
+        )
+
+        // Draw eyes based on direction
+        let eyeOffset: (CGFloat, CGFloat) = {
+            switch direction {
+            case .up: return (0, -3)
+            case .down: return (0, 3)
+            case .left: return (-3, 0)
+            case .right: return (3, 0)
+            }
+        }()
+
+        // Determine eye positions based on direction
+        let (leftEyeX, leftEyeY, rightEyeX, rightEyeY): (CGFloat, CGFloat, CGFloat, CGFloat)
+        switch direction {
+        case .up, .down:
+            leftEyeX = position.x - 4
+            rightEyeX = position.x + 4
+            leftEyeY = position.y + eyeOffset.1
+            rightEyeY = position.y + eyeOffset.1
+        case .left, .right:
+            leftEyeX = position.x + eyeOffset.0
+            rightEyeX = position.x + eyeOffset.0
+            leftEyeY = position.y - 4
+            rightEyeY = position.y + 4
+        }
+
+        // Draw eyes
+        let eyeSize: CGFloat = 3
+        context.fill(
+            Path(ellipseIn: CGRect(x: leftEyeX - eyeSize/2, y: leftEyeY - eyeSize/2, width: eyeSize, height: eyeSize)),
+            with: .color(.black)
+        )
+        context.fill(
+            Path(ellipseIn: CGRect(x: rightEyeX - eyeSize/2, y: rightEyeY - eyeSize/2, width: eyeSize, height: eyeSize)),
+            with: .color(.black)
+        )
+
+        // Eye highlights
+        let highlightSize: CGFloat = 1
+        context.fill(
+            Path(ellipseIn: CGRect(x: leftEyeX - 0.5, y: leftEyeY - 1, width: highlightSize, height: highlightSize)),
+            with: .color(.white.opacity(0.8))
+        )
+        context.fill(
+            Path(ellipseIn: CGRect(x: rightEyeX - 0.5, y: rightEyeY - 1, width: highlightSize, height: highlightSize)),
+            with: .color(.white.opacity(0.8))
+        )
+    }
+
+    private func drawApple(context: GraphicsContext, at position: Position) {
+        let center = gridToScreen(position)
+        let appleSize = GameConstants.cellSize - 6
+        let rect = CGRect(
+            x: center.x - appleSize / 2,
+            y: center.y - appleSize / 2,
+            width: appleSize,
+            height: appleSize
+        )
+
+        // Shadow underneath
+        var shadowContext = context
+        shadowContext.addFilter(.shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2))
+        shadowContext.fill(
+            Path(ellipseIn: rect.offsetBy(dx: 0, dy: 1)),
+            with: .color(.black.opacity(0.1))
+        )
+
+        // Apple body with radial gradient
+        let gradient = Gradient(colors: [
+            Color(red: 1.0, green: 0.3, blue: 0.2),  // bright red (top)
+            Color(red: 0.8, green: 0.1, blue: 0.1),  // dark red (middle)
+            Color(red: 0.6, green: 0.05, blue: 0.05) // shadow red (bottom)
+        ])
+
+        let gradientCenter = CGPoint(x: center.x - appleSize * 0.15, y: center.y - appleSize * 0.15)
+        context.fill(
+            Path(ellipseIn: rect),
+            with: .radialGradient(
+                gradient,
+                center: gradientCenter,
+                startRadius: 0,
+                endRadius: appleSize * 0.6
+            )
+        )
+
+        // Highlight spot for 3D effect
+        let highlightSize: CGFloat = 5
+        let highlightRect = CGRect(
+            x: center.x - appleSize / 4,
+            y: center.y - appleSize / 4,
+            width: highlightSize,
+            height: highlightSize
+        )
+        context.fill(
+            Path(ellipseIn: highlightRect),
+            with: .color(.white.opacity(0.7))
+        )
+
+        // Stem (small brown rectangle at top)
+        let stemWidth: CGFloat = 2
+        let stemHeight: CGFloat = 4
+        let stemRect = CGRect(
+            x: center.x - stemWidth / 2,
+            y: center.y - appleSize / 2 + 1,
+            width: stemWidth,
+            height: stemHeight
+        )
+        context.fill(
+            Path(roundedRect: stemRect, cornerRadius: 1),
+            with: .color(Color(red: 0.4, green: 0.2, blue: 0.1))
+        )
+
+        // Leaf (small green ellipse)
+        let leafRect = CGRect(
+            x: center.x + 1,
+            y: center.y - appleSize / 2,
+            width: 3,
+            height: 2
+        )
+        context.fill(
+            Path(ellipseIn: leafRect),
+            with: .color(Color(red: 0.2, green: 0.6, blue: 0.1))
+        )
     }
 }
 
